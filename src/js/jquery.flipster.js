@@ -1,12 +1,22 @@
+/*jslint devel: false, browser: true, maxerr: 50, indent: 4, white: true*/
+/*global $: false, log: false, jQuery: false, console: false, clearInterval: false, clearTimeout: false, document: false, event: false, frames: false, history: false, Image: false, location: false, name: false, navigator: false, Option: false, parent: false, screen: false, setInterval: false, setTimeout: false, window: false, XMLHttpRequest: false */
+
 (function($) {
+  'use strict';
+  
 $.fn.flipster = function(options) {
-	var isMethodCall = typeof options === 'string' ? true : false;
+	var isMethodCall = typeof options === 'string' ? true : false,
+	 method,
+	 args,
+	 defaults,
+	 settings,
+	 win;
 
 	if (isMethodCall) {
-		var method = options;
-		var args = Array.prototype.slice.call(arguments, 1);
+		method = options;
+		args = Array.prototype.slice.call(arguments, 1);
 	} else {
-		var defaults = {
+		defaults = {
 			itemContainer:			'ul', // Container for the flippin' items.
 			itemSelector:				'li', // Selector for children of itemContainer to flip
 			style:							'coverflow', // Switch between 'coverflow' or 'carousel' display styles
@@ -22,22 +32,22 @@ $.fn.flipster = function(options) {
 			onItemSwitch:				function(){}, // Callback function when items are switches
 			disableRotation: false
 		};
-		var settings = $.extend({}, defaults, options);
+		settings = $.extend({}, defaults, options);
 
-		var win = $(window);
+		win = $(window);
 	}
 	
 	return this.each(function(){
-		
-		var _flipster = $(this);
-		var methods;
+		var _flipster = $(this),
+		  methods,
+		  _flipItemsOuter;
 
 		if (isMethodCall) {
 			methods = _flipster.data('methods');
 			return methods[method].apply(this, args);
 		}
 
-		var	_flipItemsOuter;
+		_flipItemsOuter;
 		var	_flipItems;
 		var	_flipNav;
 		var	_flipNavItems;
@@ -398,4 +408,4 @@ $.fn.flipster = function(options) {
 		if ( !_flipster.hasClass("flipster-active") ) { init(); }
 	});
 };
-})( jQuery );
+})(jQuery);
