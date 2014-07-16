@@ -1,9 +1,5 @@
-/*jslint devel: false, browser: true, maxerr: 50, indent: 4, white: true*/
-/*global $: false, log: false, jQuery: false, console: false, clearInterval: false, clearTimeout: false, document: false, event: false, frames: false, history: false, Image: false, location: false, name: false, navigator: false, Option: false, parent: false, screen: false, setInterval: false, setTimeout: false, window: false, XMLHttpRequest: false */
-
 (function($) {
   'use strict';
-  
 $.fn.flipster = function(options) {
 	var isMethodCall = typeof options === 'string' ? true : false,
 	 method,
@@ -32,63 +28,61 @@ $.fn.flipster = function(options) {
 			onItemSwitch:				function(){}, // Callback function when items are switches
 			disableRotation: false
 		};
+		
 		settings = $.extend({}, defaults, options);
 
 		win = $(window);
 	}
 	
 	return this.each(function(){
-		var _flipster = $(this),
+		var flipster = $(this),
 		  methods,
-		  _flipItemsOuter;
+		  flipItemsOuter,
+		  flipItems,
+		  flipNav,
+		  flipNavItems,
+		  current = 0,
+		  startTouchX = 0,
+		  actionThrottle = 0,
+		  throttleTimeout,
+		  compatibility;
 
 		if (isMethodCall) {
-			methods = _flipster.data('methods');
+			methods = flipster.data('methods');
 			return methods[method].apply(this, args);
 		}
-
-		_flipItemsOuter;
-		var	_flipItems;
-		var	_flipNav;
-		var	_flipNavItems;
-		var	_current = 0;
 		
-		var _startTouchX = 0;
-		var _actionThrottle = 0;
-		var _throttleTimeout;
-		var compatibility;
-
 		// public methods
 		methods = {
 			jump: jump
 		};
-		_flipster.data('methods', methods);
+		flipster.data('methods', methods);
 
 		function removeThrottle() {
-			_actionThrottle = 0;
+			actionThrottle = 0;
 		}
 
         function resize() {
-            _flipItemsOuter.height(calculateBiggestFlipItemHeight());
-            _flipster.css("height","auto");
-            if ( settings.style === 'carousel' ) { _flipItemsOuter.width(_flipItems.width()); }
+            flipItemsOuter.height(calculateBiggestFlipItemHeight());
+            flipster.css("height","auto");
+            if ( settings.style === 'carousel' ) { flipItemsOuter.width(flipItems.width()); }
         }
 
         function calculateBiggestFlipItemHeight() {
             var biggestHeight = 0;
-            _flipItems.each(function() {
+            flipItems.each(function() {
                 if ($(this).height() > biggestHeight) biggestHeight = $(this).height();
             });
             return biggestHeight;
         }
 
 		function buildNav() {
-			if ( settings.enableNav && _flipItems.length > 1 ) {
+			if ( settings.enableNav && flipItems.length > 1 ) {
 				var navCategories = [],
 					navItems = [],
 					navList = [];
 				
-				_flipItems.each(function(){
+				flipItems.each(function(){
 					var category = $(this).data("flip-category"),
 						itemId = $(this).attr("id"),
 						itemTitle = $(this).attr("title");
@@ -118,11 +112,11 @@ $.fn.flipster = function(options) {
 				for ( var navIndex in navList ) { navDisplay += navList[navIndex]; }
 				navDisplay += '</ul>';
 				
-				_flipNav = $(navDisplay).prependTo(_flipster);
-				_flipNavItems = _flipNav.find("a").on("click",function(e){
+				flipNav = $(navDisplay).prependTo(flipster);
+				flipNavItems = flipNav.find("a").on("click",function(e){
 					var target;
 					if ( $(this).hasClass("flip-nav-category-link") ) {
-						target = _flipItems.filter("[data-flip-category='"+$(this).data("flip-category")+"']");
+						target = flipItems.filter("[data-flip-category='"+$(this).data("flip-category")+"']");
 					} else {
 						target = $(this.hash);
 					}
@@ -136,25 +130,25 @@ $.fn.flipster = function(options) {
 		}
 		
 		function updateNav() {
-			if ( settings.enableNav && _flipItems.length > 1 ) {
-				currentItem = $(_flipItems[_current]);
-				_flipNav.find(".flip-nav-current").removeClass("flip-nav-current");
-				_flipNavItems.filter("[href='#"+currentItem.attr("id")+"']").addClass("flip-nav-current");
-				_flipNavItems.filter("[data-flip-category='"+currentItem.data("flip-category")+"']").parent().addClass("flip-nav-current");
+			if ( settings.enableNav && flipItems.length > 1 ) {
+				currentItem = $(flipItems[current]);
+				flipNav.find(".flip-nav-current").removeClass("flip-nav-current");
+				flipNavItems.filter("[href='#"+currentItem.attr("id")+"']").addClass("flip-nav-current");
+				flipNavItems.filter("[data-flip-category='"+currentItem.data("flip-category")+"']").parent().addClass("flip-nav-current");
 			}
 		}
 		
 		function buildNavButtons() {
-			if ( settings.enableNavButtons && _flipItems.length > 1 ) {
-				_flipster.find(".flipto-prev, .flipto-next").remove();
-				_flipster.append("<a href='#' class='flipto-prev'>Previous</a> <a href='#' class='flipto-next'>Next</a>");
+			if ( settings.enableNavButtons && flipItems.length > 1 ) {
+				flipster.find(".flipto-prev, .flipto-next").remove();
+				flipster.append("<a href='#' class='flipto-prev'>Previous</a> <a href='#' class='flipto-next'>Next</a>");
 				
-				_flipster.children('.flipto-prev').on("click", function(e) {
+				flipster.children('.flipto-prev').on("click", function(e) {
 					jump("left");
 					e.preventDefault();
 				});
 				
-				_flipster.children('.flipto-next').on("click", function(e) {
+				flipster.children('.flipto-next').on("click", function(e) {
 					jump("right");
 					e.preventDefault();
 				});
@@ -162,32 +156,32 @@ $.fn.flipster = function(options) {
 		}
 		
 		function center() {
-			var currentItem = $(_flipItems[_current]).addClass("flip-current");
+			var currentItem = $(flipItems[current]).addClass("flip-current");
 			
-			_flipItems.removeClass("flip-prev flip-next flip-current flip-past flip-future no-transition");
+			flipItems.removeClass("flip-prev flip-next flip-current flip-past flip-future no-transition");
 		
 			if ( settings.style === 'carousel' ) {
 				
-				_flipItems.addClass("flip-hidden");
+				flipItems.addClass("flip-hidden");
 			
-				var nextItem = $(_flipItems[_current+1]),
-					futureItem = $(_flipItems[_current+2]),
-					prevItem = $(_flipItems[_current-1]),
-					pastItem = $(_flipItems[_current-2]);
+				var nextItem = $(flipItems[current+1]),
+					futureItem = $(flipItems[current+2]),
+					prevItem = $(flipItems[current-1]),
+					pastItem = $(flipItems[current-2]);
 				
-				if ( _current === 0 ) {
-					prevItem = _flipItems.last();
+				if ( current === 0 ) {
+					prevItem = flipItems.last();
 					pastItem = prevItem.prev();
 				}
-				else if ( _current === 1 ) {
-					pastItem = _flipItems.last();
+				else if ( current === 1 ) {
+					pastItem = flipItems.last();
 				}
-				else if ( _current === _flipItems.length-2 ) {
-					futureItem = _flipItems.first();
+				else if ( current === flipItems.length-2 ) {
+					futureItem = flipItems.first();
 				}
-				else if ( _current === _flipItems.length-1 ) {
-					nextItem = _flipItems.first();
-					futureItem = $(_flipItems[1]);
+				else if ( current === flipItems.length-1 ) {
+					nextItem = flipItems.first();
+					futureItem = $(flipItems[1]);
 				}
 					
 				futureItem.removeClass("flip-hidden").addClass("flip-future");
@@ -198,34 +192,34 @@ $.fn.flipster = function(options) {
 			} else {
 				var spacer = currentItem.outerWidth()/2;
 				var totalLeft = 0;
-				var totalWidth = _flipItemsOuter.width();
+				var totalWidth = flipItemsOuter.width();
 				var currentWidth = currentItem.outerWidth();
-				var currentLeft = (_flipItems.index(currentItem)*currentWidth)/2 +spacer/2;
+				var currentLeft = (flipItems.index(currentItem)*currentWidth)/2 +spacer/2;
 				
-				_flipItems.removeClass("flip-hidden");
+				flipItems.removeClass("flip-hidden");
 				
-				for (i = 0; i < _flipItems.length; i++) {
-					var thisItem = $(_flipItems[i]);
+				for (var i = 0; i < flipItems.length; i++) {
+					var thisItem = $(flipItems[i]);
 					var thisWidth = thisItem.outerWidth();
 					
-					if (i < _current) {
+					if (i < current) {
 						thisItem.addClass("flip-past")
 							.css({
 								"z-index" : i,
 								"left" : (i*thisWidth/2)+"px"
 							});
 					}
-					else if ( i > _current ) {
+					else if ( i > current ) {
 						thisItem.addClass("flip-future")
 							.css({
-								"z-index" : _flipItems.length-i,
+								"z-index" : flipItems.length-i,
 								"left" : (i*thisWidth/2)+spacer+"px"
 							});
 					}
 				}
 				
 				currentItem.css({
-					"z-index" : _flipItems.length+1,
+					"z-index" : flipItems.length+1,
 					"left" : currentLeft +"px"
 				});
 				
@@ -243,10 +237,10 @@ $.fn.flipster = function(options) {
 						$(rightItems[i]).css("zoom", (100-((i+1)*5)+"%"));
 					}
 
-					_flipItemsOuter.animate({"left":newLeftPos}, 333);
+					flipItemsOuter.animate({"left":newLeftPos}, 333);
 				}
 				else {
-					_flipItemsOuter.css("left", newLeftPos);
+					flipItemsOuter.css("left", newLeftPos);
 				}
 			}
 				
@@ -260,19 +254,19 @@ $.fn.flipster = function(options) {
 		}
 		
 		function jump(to) {
-			if ( _flipItems.length > 1 ) {
+			if ( flipItems.length > 1 ) {
 				if ( to === "left" ) {
-					if ( _current > 0 ) { _current--; }
-					else { _current = _flipItems.length-1; }
+					if ( current > 0 ) { current--; }
+					else { current = flipItems.length-1; }
 				}
 				else if ( to === "right" ) {
-					if ( _current < _flipItems.length-1 ) { _current++; }
-					else { _current = 0; }
+					if ( current < flipItems.length-1 ) { current++; }
+					else { current = 0; }
 				} else if ( typeof to === 'number' ) {
-					_current = to;
+					current = to;
 				} else {
 					// if object is sent, get its index
-					_current = _flipItems.index(to);
+					current = flipItems.index(to);
 				}
 				center();
 			}
@@ -282,11 +276,11 @@ $.fn.flipster = function(options) {
 /* Untested Compatibility */
 				
 			// Basic setup
-			_flipster.addClass("flipster flipster-active flipster-"+settings.style).css("visibility","hidden");
+			flipster.addClass("flipster flipster-active flipster-"+settings.style).css("visibility","hidden");
 			if (settings.disableRotation)
-			  _flipster.addClass('no-rotate');
-			_flipItemsOuter = _flipster.find(settings.itemContainer).addClass("flip-items");
-			_flipItems = _flipItemsOuter.find(settings.itemSelector).addClass("flip-item flip-hidden").wrapInner("<div class='flip-content' />");
+			  flipster.addClass('no-rotate');
+			flipItemsOuter = flipster.find(settings.itemContainer).addClass("flip-items");
+			flipItems = flipItemsOuter.find(settings.itemSelector).addClass("flip-item flip-hidden").wrapInner("<div class='flip-content' />");
 			
 			//Browsers that don't support CSS3 transforms get compatibility:
 			var isIEmax8 = ('\v' === 'v'); //IE <= 8
@@ -295,7 +289,7 @@ $.fn.flipster = function(options) {
 			var isIE9 = checkIE.getElementsByTagName("i").length === 1;
 			if (isIEmax8 || isIE9) {
 				compatibility = true;
-				_flipItemsOuter.addClass("compatibility");
+				flipItemsOuter.addClass("compatibility");
 			}
 			
 	
@@ -305,17 +299,17 @@ $.fn.flipster = function(options) {
 			
 			
 			// Set the starting item
-			if ( settings.start && _flipItems.length > 1 ) {
+			if ( settings.start && flipItems.length > 1 ) {
 				// Find the middle item if start = center
 				if ( settings.start === 'center' ) {
-					if (!_flipItems.length % 2) {
-						_current = _flipItems.length/2 + 1;
+					if (!flipItems.length % 2) {
+						current = flipItems.length/2 + 1;
 					}
 					else {
-						_current = Math.floor(_flipItems.length/2);
+						current = Math.floor(flipItems.length/2);
 					}
 				} else {
-					_current = settings.start;
+					current = settings.start;
 				}
 			}
 			
@@ -325,7 +319,7 @@ $.fn.flipster = function(options) {
 			
 			
 			// Necessary to start flipster invisible and then fadeIn so height/width can be set accurately after page load
-			_flipster.hide().css("visibility","visible").fadeIn(400,function(){ center(); });
+			flipster.hide().css("visibility","visible").fadeIn(400,function(){ center(); });
 			
 			
 			// Attach event bindings.
@@ -333,17 +327,17 @@ $.fn.flipster = function(options) {
 			
 			
 			// Navigate directly to an item by clicking
-			_flipItems.on("click", function(e) {
+			flipItems.on("click", function(e) {
 				if ( !$(this).hasClass("flip-current") ) { e.preventDefault(); }
-				jump(_flipItems.index(this));
+				jump(flipItems.index(this));
 			});
 			
 			
 			// Keyboard Navigation
-			if ( settings.enableKeyboard && _flipItems.length > 1 ) {
+			if ( settings.enableKeyboard && flipItems.length > 1 ) {
 				win.on("keydown.flipster", function(e) {
-					_actionThrottle++;
-					if (_actionThrottle % 7 !== 0 && _actionThrottle !== 1) return; //if holding the key down, ignore most events
+					actionThrottle++;
+					if (actionThrottle % 7 !== 0 && actionThrottle !== 1) return; //if holding the key down, ignore most events
 					
 					var code = e.which;
 					if (code === 37 ) {
@@ -357,18 +351,18 @@ $.fn.flipster = function(options) {
 				});
 		
 				win.on("keyup.flipster", function(e){
-					_actionThrottle = 0; //reset action throttle on key lift to avoid throttling new interactions
+					actionThrottle = 0; //reset action throttle on key lift to avoid throttling new interactions
 				});
 			}
 			
 			
 			// Mousewheel Navigation
-			if ( settings.enableMousewheel && _flipItems.length > 1 ) { // TODO: Fix scrollwheel on Firefox
-				_flipster.on("mousewheel.flipster", function(e){
-					_throttleTimeout = window.setTimeout(removeThrottle, 500); //throttling should expire if scrolling pauses for a moment.
-					_actionThrottle++;
-					if (_actionThrottle % 4 !==0 && _actionThrottle !== 1) return; //throttling like with held-down keys
-					window.clearTimeout(_throttleTimeout);
+			if ( settings.enableMousewheel && flipItems.length > 1 ) { // TODO: Fix scrollwheel on Firefox
+				flipster.on("mousewheel.flipster", function(e){
+					throttleTimeout = window.setTimeout(removeThrottle, 500); //throttling should expire if scrolling pauses for a moment.
+					actionThrottle++;
+					if (actionThrottle % 4 !==0 && actionThrottle !== 1) return; //throttling like with held-down keys
+					window.clearTimeout(throttleTimeout);
 					
 					if ( e.originalEvent.wheelDelta /120 > 0 ) { jump("left"); }
 					else { jump("right"); }
@@ -379,33 +373,33 @@ $.fn.flipster = function(options) {
 			
 			
 			// Touch Navigation
-			if ( settings.enableTouch && _flipItems.length > 1 ) {
-				_flipster.on("touchstart.flipster", function(e) {
-					_startTouchX = e.originalEvent.targetTouches[0].screenX;
+			if ( settings.enableTouch && flipItems.length > 1 ) {
+				flipster.on("touchstart.flipster", function(e) {
+					startTouchX = e.originalEvent.targetTouches[0].screenX;
 				});
 		
-				_flipster.on("touchmove.flipster", function(e) {
+				flipster.on("touchmove.flipster", function(e) {
 					e.preventDefault();
 					var nowX = e.originalEvent.targetTouches[0].screenX;
-					var touchDiff = nowX-_startTouchX;
-					if (touchDiff > _flipItems[0].clientWidth/1.75){
+					var touchDiff = nowX-startTouchX;
+					if (touchDiff > flipItems[0].clientWidth/1.75){
 						jump("left");
-						_startTouchX = nowX;
-					}else if (touchDiff < -1*(_flipItems[0].clientWidth/1.75)){
+						startTouchX = nowX;
+					}else if (touchDiff < -1*(flipItems[0].clientWidth/1.75)){
 						jump("right");
-						_startTouchX = nowX;
+						startTouchX = nowX;
 					}
 				});
 		
-				_flipster.on("touchend.flipster", function(e) {
-					_startTouchX = 0;
+				flipster.on("touchend.flipster", function(e) {
+					startTouchX = 0;
 				});
 			}
 		}
 		
 		
 		// Initialize if flipster is not already active.
-		if ( !_flipster.hasClass("flipster-active") ) { init(); }
+		if ( !flipster.hasClass("flipster-active") ) { init(); }
 	});
 };
 })(jQuery);
